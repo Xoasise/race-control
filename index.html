@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Race Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #11111a;
+    --surface2: #1a1a28;
+    --border: rgba(255,255,255,0.08);
+    --border-bright: rgba(255,255,255,0.18);
+    --text: #e8e8f0;
+    --muted: #7a7a9a;
+    --accent: #c8a84b;
+    --green: #00e87a;
+    --red: #ff2b2b;
+    --yellow: #ffc107;
+    --blue: #4fc3f7;
+    --orange: #ff8c42;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* LOCK SCREEN */
+  #lockscreen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    gap: 2rem;
+  }
+  .lock-logo {
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .lock-sub {
+    font-size: 1rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-top: -1.5rem;
+  }
+  .lock-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    width: 280px;
+  }
+  .lock-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    letter-spacing: 0.2em;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .lock-input:focus { border-color: var(--accent); }
+  .lock-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    border: none;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .lock-btn:hover { opacity: 0.85; }
+  .lock-btn:active { transform: scale(0.98); }
+  .lock-error {
+    color: var(--red);
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    min-height: 1rem;
+  }
+
+  /* MAIN PANEL */
+  #panel { display: none; }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .topbar-logo {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .topbar-center {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .topbar-clock {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .obs-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .obs-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .obs-dot.connected { background: var(--green); animation: pulse 2s infinite; }
+  .obs-dot.error { background: var(--red); }
+  .obs-label { color: var(--muted); }
+  .obs-label.connected { color: var(--green); }
+  .obs-label.error { color: var(--red); }
+
+  .topbar-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .main {
+    padding: 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .section-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* FLAG COMMANDS */
+  .flags-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .flag-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0;
+    cursor: grab;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+  .flag-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--card-color);
+    transition: height 0.2s;
+  }
+  .flag-card:hover { border-color: var(--card-color); transform: translateY(-1px); }
+  .flag-card:hover::before { height: 5px; }
+  .flag-card.dragging {
+    opacity: 0.6;
+    transform: scale(0.97);
+    cursor: grabbing;
+    z-index: 100;
+  }
+  .flag-inner {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1;
+  }
+  .flag-icon {
+    width: 48px; height: 36px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .flag-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--card-color);
+    line-height: 1.1;
+  }
+  .flag-desc {
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .flag-shortcut {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 0.2rem 0.5rem;
+    align-self: flex-start;
+    margin-top: auto;
+  }
+  .drag-hint {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.5;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+  }
+  .drag-hint::before {
+    content: '⠿';
+    font-size: 0.8rem;
+  }
+
+  /* Specific flag colors */
+  .flag-green { --card-color: var(--green); }
+  .flag-red { --card-color: var(--red); }
+  .flag-sc { --card-color: var(--yellow); }
+  .flag-vsc { --card-color: var(--blue); }
+  .flag-scin { --card-color: var(--orange); }
+  .flag-formation { --card-color: #b388ff; }
+  .flag-chequered { --card-color: #ffffff; }
+  .flag-fcy { --card-color: #ffe082; }
+
+  /* Green flag visual */
+  .vis-green { width: 100%; height: 100%; background: var(--green); }
+  .vis-red { width: 100%; height: 100%; background: var(--red); }
+  .vis-yellow { width: 100%; height: 100%; background: var(--yellow); }
+  .vis-blue { width: 100%; height: 100%; background: var(--blue); }
+  .vis-checker {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    width: 100%; height: 100%;
+  }
+  .vis-checker div:nth-child(odd) { background: white; }
+  .vis-checker div:nth-child(even) { background: black; }
+  .vis-checker div:nth-child(7), .vis-checker div:nth-child(9),
+  .vis-checker div:nth-child(11), .vis-checker div:nth-child(13),
+  .vis-checker div:nth-child(15) { background: black; }
+  .vis-checker div:nth-child(8), .vis-checker div:nth-child(10),
+  .vis-checker div:nth-child(12), .vis-checker div:nth-child(14),
+  .vis-checker div:nth-child(16) { background: white; }
+
+  .flag-card.full { grid-column: 1 / -1; }
+
+  /* ========================
+     DROP ZONE
+  ======================== */
+  .drop-zone-wrapper {
+    margin-bottom: 2rem;
+  }
+  .drop-zone {
+    border: 2px dashed var(--border-bright);
+    border-radius: 4px;
+    background: var(--surface);
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .drop-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(200,168,75,0.03) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(200,168,75,0.07);
+    box-shadow: 0 0 30px rgba(200,168,75,0.1) inset;
+  }
+  .drop-zone.drag-over .drop-icon { transform: scale(1.2); color: var(--accent); }
+  .drop-zone.activated {
+    border-color: var(--activate-color, var(--green));
+    background: rgba(0,232,122,0.07);
+    animation: activatePulse 0.5s ease;
+  }
+  @keyframes activatePulse {
+    0% { box-shadow: 0 0 0 rgba(0,232,122,0); }
+    50% { box-shadow: 0 0 40px rgba(0,232,122,0.3) inset; }
+    100% { box-shadow: 0 0 0 rgba(0,232,122,0); }
+  }
+  .drop-icon {
+    font-size: 1.8rem;
+    transition: transform 0.2s, color 0.2s;
+    opacity: 0.4;
+  }
+  .drop-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+  .drop-sublabel {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    opacity: 0.5;
+    text-align: center;
+  }
+  .drop-feedback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+  }
+  .drop-feedback.show { opacity: 1; }
+
+  /* LOG */
+  .log-section { margin-bottom: 2.5rem; }
+  .log-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    height: 180px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+  }
+  .log-entry {
+    display: flex;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--border);
+    animation: logIn 0.3s ease;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  @keyframes logIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .log-time { color: var(--muted); flex-shrink: 0; }
+  .log-msg { color: var(--text); }
+  .log-source {
+    margin-left: auto;
+    font-size: 0.65rem;
+    color: var(--muted);
+    opacity: 0.6;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+  .log-empty { color: var(--muted); font-style: italic; padding: 0.5rem; }
+
+  /* AUDIO SECTION */
+  .audio-section { margin-bottom: 2.5rem; }
+  .audio-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .audio-slot {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+    position: relative;
+  }
+  .audio-builtin-badge {
+    position: absolute;
+    top: 4px; right: 4px;
+    font-size: 0.5rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: rgba(0,232,122,0.15);
+    color: var(--green);
+    padding: 0.15rem 0.3rem;
+    border-radius: 2px;
+  }
+  .audio-slot-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+  .audio-slot-color {
+    width: 24px; height: 4px;
+    border-radius: 2px;
+  }
+  .audio-preview-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    color: var(--muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .audio-preview-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .audio-upload-btn {
+    background: var(--surface2);
+    border: 1px dashed var(--border-bright);
+    color: var(--muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .audio-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .audio-upload-btn.loaded { border-style: solid; border-color: #3a3; color: #5c5; }
+  .audio-file-input { display: none; }
+  .audio-slot-filename {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-align: center;
+    word-break: break-all;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .volume-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .volume-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .volume-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--surface2);
+    outline: none;
+    border-radius: 2px;
+  }
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  .volume-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* OBS SECTION */
+  .obs-section { margin-bottom: 2.5rem; }
+  .obs-config {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .obs-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .obs-field-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    width: 100px;
+    flex-shrink: 0;
+  }
+  .obs-input {
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+    outline: none;
+    flex: 1;
+    min-width: 160px;
+  }
+  .obs-input:focus { border-color: var(--accent); }
+  .obs-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .obs-btn:hover { background: var(--accent); color: #000; }
+  .obs-btn.disconnect { border-color: var(--red); color: var(--red); }
+  .obs-btn.disconnect:hover { background: var(--red); color: #fff; }
+  .obs-status-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    padding: 0.4rem 0;
+  }
+  .obs-scene-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+  .obs-scene-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .obs-scene-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+  .obs-scene-input {
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0.35rem 0.4rem;
+    outline: none;
+    width: 100%;
+    text-align: center;
+  }
+  .obs-scene-input:focus { border-color: var(--accent); }
+  .obs-info {
+    font-size: 0.65rem;
+    color: var(--muted);
+    opacity: 0.7;
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+    padding: 0.5rem 0 0;
+    border-top: 1px solid var(--border);
+  }
+
+  /* FLASH OVERLAY */
+  #flash {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 500;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  /* ACTIVE COMMAND BANNER */
+  #banner {
+    position: fixed;
+    bottom: 2rem; left: 50%;
+    transform: translateX(-50%) translateY(4rem);
+    background: var(--surface);
+    border: 1px solid var(--banner-color, var(--border));
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--banner-color, var(--text));
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s;
+    opacity: 0;
+    white-space: nowrap;
+    z-index: 600;
+  }
+  #banner.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  /* SETTINGS */
+  .settings-section { margin-bottom: 2.5rem; }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 0.5rem;
+  }
+  .settings-label {
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex: 1;
+  }
+  .settings-input {
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+    outline: none;
+    width: 200px;
+  }
+  .settings-input:focus { border-color: var(--accent); }
+  .settings-save {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .settings-save:hover { background: var(--accent); color: #000; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lockscreen">
+  <div class="lock-logo">Race Control</div>
+  <div class="lock-sub">GTA5 — Director Panel</div>
+  <div class="lock-form">
+    <input class="lock-input" type="password" id="pwInput" placeholder="••••••••" autocomplete="off" />
+    <button class="lock-btn" onclick="unlock()">Accéder</button>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
+
+<!-- FLASH OVERLAY -->
+<div id="flash"></div>
+
+<!-- ACTIVE BANNER -->
+<div id="banner"></div>
+
+<!-- MAIN PANEL -->
+<div id="panel">
+  <div class="topbar">
+    <div class="topbar-logo">Race Control</div>
+    <div class="topbar-center">
+      <div class="topbar-clock" id="clock">00:00:00</div>
+      <div class="obs-indicator">
+        <div class="obs-dot" id="obsDot"></div>
+        <span class="obs-label" id="obsLabel">OBS Déconnecté</span>
+      </div>
+    </div>
+    <div class="topbar-status">
+      <div class="status-dot"></div>
+      <span>Système actif</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- COMMANDES -->
+    <div class="section-title">Commandes de course — glisser sur la zone d'activation</div>
+    <div class="flags-grid">
+
+      <!-- GREEN FLAG -->
+      <div class="flag-card flag-green" draggable="true" data-cmd="green" title="Raccourci : G">
+        <div class="flag-inner">
+          <div class="flag-icon"><div class="vis-green"></div></div>
+          <div class="flag-title">Green Flag</div>
+          <div class="flag-desc">La course reprend — piste libre</div>
+          <div class="flag-shortcut">Touche G</div>
+          <div class="drag-hint">glisser pour activer</div>
+        </div>
+      </div>
+
+      <!-- RED FLAG -->
+      <div class="flag-card flag-red" draggable="true" data-cmd="red" title="Raccourci : R">
+        <div class="flag-inner">
+          <div class="flag-icon"><div class="vis-red"></div></div>
+          <div class="flag-title">Red Flag</div>
+          <div class="flag-desc">Arrêt immédiat de la course</div>
+          <div class="flag-shortcut">Touche R</div>
+          <div class="drag-hint">glisser pour activer</div>
+        </div>
+      </div>
+
+      <!-- SAFETY CAR -->
+      <div class="flag-card flag-sc" draggable="true" data-cmd="sc" title="Raccourci : S">
+        <div class="flag-inner">
+          <div class="flag-icon"><div class="vis-yellow"></div></div>
+          <div class="flag-title">Safety Car Deployed</div>
+          <div class="flag-desc">Safety car en piste — file derrière</div>
+          <div class="flag-shortcut">Touche S</div>
+          <div class="drag-hint">glisser pour activer</div>
+        </div>
+      </div>
+
+      <!-- VSC -->
+      <div class="flag-card flag-vsc" draggable="true" data-cmd="vsc" title="Raccourci : V">
+        <div class="flag-inner">
+          <div class="flag-icon"><div class="vis-blue"></div></div>
+          <div class="flag-title">Virtual Safety Car</div>
+          <div class="flag-desc">VSC déployé — respecter les deltas</div>
+          <div class="flag-shortcut">Touche V</div>
+          <div class="drag-hint">glisser pour activer</div>
+        </div>
+      </div>
+
+      <!-- SC IN THIS LAP -->
+      <div class="flag-card flag-scin" draggable="true" data-cmd="scin" title="Raccourci : I">
+        <div class="flag-inner">
+          <div class="flag-icon" style="width:100%;height:6px;border-radius:2px;background:var(--orange);margin-bottom:0.25rem;"></div>
+          <div class="flag-title">Safety Car In This Lap</div>
+          <div class="flag-desc">La safety car rentre ce tour — préparez-vous au restart</div>
+          <div class="flag-shortcut">Touche I</div>
+          <div class="drag-hint">glisser pour activer</div>
+        </div>
+      </div>
+
+      <!-- FORMATION LAP -->
+      <div class="flag-card flag-formation" draggable="true" data-cmd="formation" title="Raccourci : F">
+        <div class="flag-inner">
+          <div class="flag-icon" style="width:100%;height:100%;background:linear-gradient(135deg,#b388ff 50%,#7c4dff 50%);"></div>
+          <div class="flag-title">Formation Lap</div>
+          <div class="flag-desc">Tour de formation — allez en grille</div>
+          <div class="flag-shortcut">Touche F</div>
+          <div class="drag-hint">glisser pour activer</div>
+        </div>
+      </div>
+
+      <!-- CHEQUERED FLAG -->
+      <div class="flag-card flag-chequered" draggable="true" data-cmd="chequered" title="Raccourci : C">
+        <div class="flag-inner">
+          <div class="flag-icon">
+            <div class="vis-checker"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+          </div>
+          <div class="flag-title">Chequered Flag</div>
+          <div class="flag-desc">Fin de course — drapeau à damier</div>
+          <div class="flag-shortcut">Touche C</div>
+          <div class="drag-hint">glisser pour activer</div>
+        </div>
+      </div>
+
+      <!-- FULL COURSE YELLOW -->
+      <div class="flag-card flag-fcy full" draggable="true" data-cmd="fcy" title="Raccourci : Y">
+        <div class="flag-inner">
+          <div class="flag-icon" style="width:100%;height:100%;background:var(--yellow);border:2px solid #fff3;"></div>
+          <div class="flag-title">Full Course Yellow</div>
+          <div class="flag-desc">Neutralisation totale — drapeau jaune sur toute la piste</div>
+          <div class="flag-shortcut">Touche Y</div>
+          <div class="drag-hint">glisser pour activer</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DROP ZONE -->
+    <div class="drop-zone-wrapper">
+      <div class="section-title">Zone d'activation</div>
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-icon">🏁</div>
+        <div class="drop-label">Glisser une commande ici pour l'activer</div>
+        <div class="drop-sublabel">OBS + Log déclenchés simultanément</div>
+        <div class="drop-feedback" id="dropFeedback"></div>
+      </div>
+    </div>
+
+    <!-- OBS    <!-- OBS SECTION -->
+    <div class="obs-section">
+      <div class="section-title">OBS WebSocket — Intégration sources</div>
+      <div class="obs-config">
+
+        <div class="obs-row">
+          <span class="obs-field-label">Adresse</span>
+          <input class="obs-input" type="text" id="obsUrl" placeholder="ws://localhost:4455" value="ws://localhost:4455" />
+          <span class="obs-field-label" style="width:80px">Mot de passe</span>
+          <input class="obs-input" type="password" id="obsPassword" placeholder="(vide si aucun)" />
+          <button class="obs-btn" id="obsConnectBtn" onclick="obsToggle()">Connecter</button>
+        </div>
+
+        <div class="obs-status-text" id="obsStatusText">Non connecté — renseignez l'URL et connectez</div>
+
+        <div style="margin-top:0.5rem;">
+          <div class="obs-row" style="margin-bottom:0.75rem;">
+            <span class="obs-field-label">Scène OBS</span>
+            <input class="obs-input" type="text" id="obsScene" placeholder="ex: Race Overlay" value="Race Overlay" style="max-width:220px;" />
+            <span class="obs-field-label" style="width:auto; white-space:nowrap;">Masquer après</span>
+            <input class="obs-input" type="number" id="obsHideDelay" min="1" max="60" value="5" style="max-width:70px; text-align:center;" />
+            <span style="font-size:0.75rem; color:var(--muted); white-space:nowrap;">secondes</span>
+          </div>
+
+          <div class="section-title" style="margin-bottom:0.75rem;">Nom des sources à rendre visibles (dans la scène ci-dessus)</div>
+          <div class="obs-scene-grid">
+            <div class="obs-scene-slot">
+              <div class="obs-scene-label" style="color:var(--green)">Green Flag</div>
+              <input class="obs-scene-input" id="source-green" type="text" placeholder="Bandeau Green" value="Bandeau Green Flag" />
+            </div>
+            <div class="obs-scene-slot">
+              <div class="obs-scene-label" style="color:var(--red)">Red Flag</div>
+              <input class="obs-scene-input" id="source-red" type="text" placeholder="Bandeau Red" value="Bandeau Red Flag" />
+            </div>
+            <div class="obs-scene-slot">
+              <div class="obs-scene-label" style="color:var(--yellow)">Safety Car</div>
+              <input class="obs-scene-input" id="source-sc" type="text" placeholder="Bandeau SC" value="Bandeau Safety Car" />
+            </div>
+            <div class="obs-scene-slot">
+              <div class="obs-scene-label" style="color:var(--blue)">VSC</div>
+              <input class="obs-scene-input" id="source-vsc" type="text" placeholder="Bandeau VSC" value="Bandeau VSC" />
+            </div>
+            <div class="obs-scene-slot">
+              <div class="obs-scene-label" style="color:var(--orange)">SC In Lap</div>
+              <input class="obs-scene-input" id="source-scin" type="text" placeholder="Bandeau SC In" value="Bandeau SC In Lap" />
+            </div>
+            <div class="obs-scene-slot">
+              <div class="obs-scene-label" style="color:#b388ff">Formation Lap</div>
+              <input class="obs-scene-input" id="source-formation" type="text" placeholder="Bandeau Formation" value="Bandeau Formation Lap" />
+            </div>
+            <div class="obs-scene-slot">
+              <div class="obs-scene-label" style="color:#fff">Chequered Flag</div>
+              <input class="obs-scene-input" id="source-chequered" type="text" placeholder="Bandeau Chequered" value="Bandeau Chequered Flag" />
+            </div>
+            <div class="obs-scene-slot">
+              <div class="obs-scene-label" style="color:#ffe082">Full Course Yellow</div>
+              <input class="obs-scene-input" id="source-fcy" type="text" placeholder="Bandeau FCY" value="Bandeau Full Course Yellow" />
+            </div>
+          </div>
+        </div>
+
+        <div class="obs-info">
+          ℹ️ &nbsp;Nécessite <strong>OBS Studio 28+</strong> avec <strong>obs-websocket v5</strong> (inclus par défaut). Dans OBS : Outils → WebSocket Server Settings → activer. Les sources listées doivent être présentes dans la scène indiquée — elles seront rendues visibles puis masquées automatiquement après le délai configuré.
+        </div>
+
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="log-section">
+      <div class="section-title">Journal de course</div>
+      <div class="log-container" id="logContainer">
+        <div class="log-empty">Aucune commande envoyée</div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="settings-section">
+      <div class="section-title">Paramètres</div>
+      <div class="settings-row">
+        <span class="settings-label">Changer le mot de passe</span>
+        <input class="settings-input" type="password" id="newPw" placeholder="Nouveau mot de passe" />
+        <button class="settings-save" onclick="changePassword()">Enregistrer</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  PASSWORD
+// ─────────────────────────────────────────────
+let PASSWORD = localStorage.getItem('rc_password') || 'race2025';
+let logEmpty = true;
+
+const commands = {
+  green:     { label: 'Green Flag',             color: '#00e87a', flash: 'rgba(0,232,122,0.15)' },
+  red:       { label: 'Red Flag',               color: '#ff2b2b', flash: 'rgba(255,43,43,0.15)' },
+  sc:        { label: 'Safety Car Deployed',    color: '#ffc107', flash: 'rgba(255,193,7,0.15)' },
+  vsc:       { label: 'Virtual Safety Car',     color: '#4fc3f7', flash: 'rgba(79,195,247,0.15)' },
+  scin:      { label: 'Safety Car In This Lap', color: '#ff8c42', flash: 'rgba(255,140,66,0.15)' },
+  formation: { label: 'Formation Lap',          color: '#b388ff', flash: 'rgba(179,136,255,0.15)' },
+  chequered: { label: 'Chequered Flag',         color: '#ffffff', flash: 'rgba(255,255,255,0.1)' },
+  fcy:       { label: 'Full Course Yellow',     color: '#ffe082', flash: 'rgba(255,224,130,0.15)' },
+};
+
+// ─────────────────────────────────────────────
+//  UNLOCK
+// ─────────────────────────────────────────────
+function unlock() {
+  const val = document.getElementById('pwInput').value;
+  if (val === PASSWORD) {
+    document.getElementById('lockscreen').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    startClock();
+    initDragDrop();
+    loadObsSettings();
+  } else {
+    document.getElementById('lockError').textContent = 'Mot de passe incorrect';
+    document.getElementById('pwInput').value = '';
+    setTimeout(() => document.getElementById('lockError').textContent = '', 2000);
+  }
+}
+document.getElementById('pwInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') unlock();
+});
+
+// ─────────────────────────────────────────────
+//  CLOCK
+// ─────────────────────────────────────────────
+function startClock() {
+  setInterval(() => {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map(n => String(n).padStart(2,'0')).join(':');
+  }, 1000);
+}
+
+// ─────────────────────────────────────────────
+//  KEYBOARD SHORTCUTS
+// ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (document.getElementById('lockscreen').style.display !== 'none') return;
+  const active = document.activeElement;
+  if (active && (active.tagName === 'INPUT')) return;
+  const map = { g:'green', r:'red', s:'sc', v:'vsc', i:'scin', f:'formation', c:'chequered', y:'fcy' };
+  const k = e.key.toLowerCase();
+  if (map[k]) triggerCommand(map[k], 'clavier');
+});
+
+// ─────────────────────────────────────────────
+//  DRAG & DROP
+// ─────────────────────────────────────────────
+let draggedCmd = null;
+
+function initDragDrop() {
+  const cards = document.querySelectorAll('.flag-card[data-cmd]');
+  const zone = document.getElementById('dropZone');
+
+  cards.forEach(card => {
+    card.addEventListener('dragstart', e => {
+      draggedCmd = card.dataset.cmd;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      draggedCmd = null;
+    });
+  });
+
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    zone.classList.add('drag-over');
+  });
+
+  zone.addEventListener('dragleave', e => {
+    if (!zone.contains(e.relatedTarget)) {
+      zone.classList.remove('drag-over');
+    }
+  });
+
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (draggedCmd) {
+      triggerCommand(draggedCmd, 'glisser');
+      showDropFeedback(draggedCmd);
+    }
+  });
+
+  // Touch support (mobile)
+  cards.forEach(card => {
+    card.addEventListener('touchstart', e => {
+      draggedCmd = card.dataset.cmd;
+    }, { passive: true });
+  });
+  zone.addEventListener('touchend', e => {
+    if (!draggedCmd) return;
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (zone.contains(el) || el === zone) {
+      triggerCommand(draggedCmd, 'glisser');
+      showDropFeedback(draggedCmd);
+    }
+    draggedCmd = null;
+  });
+}
+
+function showDropFeedback(key) {
+  const cmd = commands[key];
+  const zone = document.getElementById('dropZone');
+  const fb = document.getElementById('dropFeedback');
+  zone.style.setProperty('--activate-color', cmd.color);
+  fb.textContent = '✓ ' + cmd.label;
+  fb.style.color = cmd.color;
+  fb.classList.add('show');
+  zone.classList.add('activated');
+  setTimeout(() => {
+    fb.classList.remove('show');
+    zone.classList.remove('activated');
+    zone.style.removeProperty('--activate-color');
+  }, 1800);
+}
+
+// ─────────────────────────────────────────────
+//  TRIGGER COMMAND
+// ─────────────────────────────────────────────
+function triggerCommand(key, source) {
+  source = source || 'clavier';
+  const cmd = commands[key];
+  flashOverlay(cmd.flash);
+  showBanner(cmd.label, cmd.color);
+  addLog(cmd.label, source);
+  obsShowSource(key);
+}
+
+// ─────────────────────────────────────────────
+//  FLASH
+// ─────────────────────────────────────────────
+function flashOverlay(color) {
+  const el = document.getElementById('flash');
+  el.style.background = color;
+  el.style.opacity = '1';
+  setTimeout(() => el.style.opacity = '0', 300);
+}
+
+// ─────────────────────────────────────────────
+//  BANNER
+// ─────────────────────────────────────────────
+let bannerTimer;
+function showBanner(label, color) {
+  const b = document.getElementById('banner');
+  b.textContent = label;
+  b.style.setProperty('--banner-color', color);
+  b.classList.add('show');
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => b.classList.remove('show'), 3000);
+}
+
+// ─────────────────────────────────────────────
+//  LOG
+// ─────────────────────────────────────────────
+function addLog(label, source) {
+  const c = document.getElementById('logContainer');
+  if (logEmpty) { c.innerHTML = ''; logEmpty = false; }
+  const now = new Date();
+  const t = [now.getHours(), now.getMinutes(), now.getSeconds()]
+    .map(n => String(n).padStart(2,'0')).join(':');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${t}</span><span class="log-msg">${label}</span><span class="log-source">${source || ''}</span>`;
+  c.insertBefore(entry, c.firstChild);
+}
+
+// ─────────────────────────────────────────────
+//  OBS WEBSOCKET v5
+// ─────────────────────────────────────────────
+let obsWs = null;
+let obsConnected = false;
+let obsSessionId = null;
+let obsRequestId = 0;
+const obsCallbacks = {};
+
+function obsSetStatus(state, msg) {
+  const dot = document.getElementById('obsDot');
+  const label = document.getElementById('obsLabel');
+  const statusText = document.getElementById('obsStatusText');
+  const btn = document.getElementById('obsConnectBtn');
+  dot.className = 'obs-dot ' + (state === 'connected' ? 'connected' : state === 'error' ? 'error' : '');
+  label.className = 'obs-label ' + (state === 'connected' ? 'connected' : state === 'error' ? 'error' : '');
+  label.textContent = state === 'connected' ? 'OBS Connecté' : state === 'error' ? 'OBS Erreur' : 'OBS Déconnecté';
+  statusText.textContent = msg;
+  btn.textContent = state === 'connected' ? 'Déconnecter' : 'Connecter';
+  btn.className = 'obs-btn' + (state === 'connected' ? ' disconnect' : '');
+}
+
+function obsToggle() {
+  if (obsConnected) {
+    obsDisconnect();
+  } else {
+    obsConnect();
+  }
+}
+
+function obsConnect() {
+  const url = document.getElementById('obsUrl').value.trim() || 'ws://localhost:4455';
+  const password = document.getElementById('obsPassword').value;
+
+  // Save settings
+  localStorage.setItem('obs_url', url);
+  localStorage.setItem('obs_password', password);
+
+  obsSetStatus('', 'Connexion en cours…');
+
+  try {
+    obsWs = new WebSocket(url);
+  } catch(e) {
+    obsSetStatus('error', 'URL invalide : ' + url);
+    return;
+  }
+
+  obsWs.onopen = () => {
+    // Handshake will be initiated by OBS sending Hello
+  };
+
+  obsWs.onmessage = async (event) => {
+    const msg = JSON.parse(event.data);
+    await obsHandleMessage(msg, password);
+  };
+
+  obsWs.onerror = () => {
+    obsSetStatus('error', 'Impossible de se connecter à ' + url);
+    obsConnected = false;
+  };
+
+  obsWs.onclose = () => {
+    if (obsConnected) {
+      obsSetStatus('', 'Déconnecté d\'OBS');
+    }
+    obsConnected = false;
+  };
+}
+
+function obsDisconnect() {
+  if (obsWs) { obsWs.close(); obsWs = null; }
+  obsConnected = false;
+  obsSetStatus('', 'Déconnecté manuellement');
+}
+
+async function obsHandleMessage(msg, password) {
+  // OBS WebSocket v5 protocol
+  const op = msg.op;
+
+  if (op === 0) {
+    // Hello — need to identify (with auth if required)
+    const helloData = msg.d;
+    const identifyPayload = {
+      op: 1,
+      d: {
+        rpcVersion: 1,
+        eventSubscriptions: 0
+      }
+    };
+    if (helloData.authentication && password) {
+      // Build auth response
+      const challenge = helloData.authentication.challenge;
+      const salt = helloData.authentication.salt;
+      const secret = await obsHashPassword(password, salt);
+      const authResp = await obsHashPassword(secret, challenge);
+      identifyPayload.d.authentication = authResp;
+    }
+    obsWs.send(JSON.stringify(identifyPayload));
+
+  } else if (op === 2) {
+    // Identified — connected!
+    obsConnected = true;
+    obsSetStatus('connected', 'Connecté à OBS WebSocket v5 — scènes prêtes');
+    addLog('OBS connecté', 'obs');
+
+  } else if (op === 7) {
+    // RequestResponse
+    const id = msg.d.requestId;
+    if (obsCallbacks[id]) {
+      obsCallbacks[id](msg.d);
+      delete obsCallbacks[id];
+    }
+  }
+}
+
+async function obsHashPassword(password, salt) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + salt);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashBase64 = btoa(String.fromCharCode(...hashArray));
+  return hashBase64;
+}
+
+function obsSend(requestType, requestData, callback) {
+  if (!obsConnected || !obsWs) return;
+  const id = String(++obsRequestId);
+  const payload = {
+    op: 6,
+    d: {
+      requestType,
+      requestId: id,
+      requestData: requestData || {}
+    }
+  };
+  if (callback) obsCallbacks[id] = callback;
+  obsWs.send(JSON.stringify(payload));
+}
+
+function obsShowSource(key) {
+  if (!obsConnected) return;
+  const sceneName = document.getElementById('obsScene')?.value?.trim();
+  const sourceName = document.getElementById('source-' + key)?.value?.trim();
+  const delay = parseInt(document.getElementById('obsHideDelay')?.value || '5', 10) * 1000;
+  if (!sceneName || !sourceName) return;
+
+  // Step 1 : récupérer le sceneItemId de la source dans Race Overlay
+  obsSend('GetSceneItemId', { sceneName, sourceName }, (resp) => {
+    if (!resp.requestStatus.result) {
+      addLog('OBS ERR: source "' + sourceName + '" introuvable dans "' + sceneName + '" (code ' + resp.requestStatus.code + ')', 'obs');
+      return;
+    }
+    const sceneItemId = resp.responseData.sceneItemId;
+    addLog('OBS: sceneItemId=' + sceneItemId + ' trouvé pour "' + sourceName + '"', 'obs');
+
+    // Step 2 : rendre visible
+    obsSend('SetSceneItemEnabled', { sceneName, sceneItemId, sceneItemEnabled: true }, (r2) => {
+      if (!r2.requestStatus.result) {
+        addLog('OBS ERR: SetSceneItemEnabled failed (code ' + r2.requestStatus.code + ')', 'obs');
+        return;
+      }
+      addLog('OBS ✓ "' + sourceName + '" visible — masquage dans ' + (delay/1000) + 's', 'obs');
+    });
+
+    // Step 3 : masquer après délai
+    setTimeout(() => {
+      obsSend('SetSceneItemEnabled', { sceneName, sceneItemId, sceneItemEnabled: false }, (r3) => {
+        const ok = r3.requestStatus.result;
+        addLog('OBS ' + (ok ? '✓' : 'ERR') + ' "' + sourceName + '" masquée', 'obs');
+      });
+    }, delay);
+  });
+}
+
+function loadObsSettings() {
+  const savedUrl = localStorage.getItem('obs_url');
+  const savedPw = localStorage.getItem('obs_password');
+  if (savedUrl) document.getElementById('obsUrl').value = savedUrl;
+  if (savedPw) document.getElementById('obsPassword').value = savedPw;
+}
+
+// ─────────────────────────────────────────────
+//  CHANGE PASSWORD
+// ─────────────────────────────────────────────
+function changePassword() {
+  const val = document.getElementById('newPw').value.trim();
+  if (!val) return;
+  PASSWORD = val;
+  localStorage.setItem('rc_password', val);
+  document.getElementById('newPw').value = '';
+  document.getElementById('newPw').placeholder = 'Mot de passe mis à jour ✓';
+  setTimeout(() => document.getElementById('newPw').placeholder = 'Nouveau mot de passe', 2000);
+}
+</script>
+</body>
+</html>
